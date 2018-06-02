@@ -10,27 +10,30 @@ Filenotify watches a directory structure and notifies users about changes in eac
 
 # 17:10 - 18:10 = 1h
 # 15:00 - 16:30 = 1.5h
-# 13:30 -
+# 13:30 - 15:00 = 1.5h
+# 15:00 -
+
 import os
 import sys
 import time
 import argparse
 import logging
 import configparser
+from smtplib import SMTP_SSL, SMTP
+from email.mime.text import MIMEText
 
 logger = logging.getLogger("filenotify")
 
 class FileNotify:
-
-    def __init__(self, base_dir, manifest_file=".MANIFEST", config_file="mailaddresses.txt",
-                 sys_config_file=None,
-                 smtp_host=None, smtp_user=None, smtp_from=None, smtp_cc=None):
-        self.base_dir = os.path.realpath(base_dir)
-        self.manifest_file = manifest_file
-        self.config_file = config_file
-        self.sys_config_file = sys_config_file
-
-        self.smtp_template = """Hello,
+    smtp_host = "localhost"
+    smtp_port = 25
+    smtp_starttls = False
+    smtp_ssl = False
+    smtp_user = None
+    smtp_from = "filenotify"
+    smtp_cc = None
+    smtp_subject = "there are new or changed files"
+    smtp_template = """Hello,
 
 there are new or changed files in directory {base_dir}:
 
@@ -39,15 +42,29 @@ the following files are new or have changed:
 {changed_files}
 
 regards,
-
 your filenotify bot
 """
+
+    def __init__(self, base_dir, manifest_file=".MANIFEST", config_file="mailaddresses.txt",
+                 sys_config_file=None,
+                 smtp_host=None, smtp_port=None, smtp_starttls=None, smtp_ssl=None, smtp_user=None,
+                 smtp_password=None, smtp_from=None, smtp_cc=None, smtp_subject=None, smtp_template=None):
+        self.base_dir = os.path.realpath(base_dir)
+        self.manifest_file = manifest_file
+        self.config_file = config_file
+        self.sys_config_file = sys_config_file
+
+
         # setup smtp parameters
         if sys_config_file:
             self.read_sys_config(sys_config_file)
         # smtp arguments from constructor/command line override config file!
         if smtp_host: self.smtp_host = smtp_host
+        if smtp_port: self.smtp_port = smtp_port
+        if smtp_starttls: self.smtp_starttls = smtp_starttls
+        if smtp_ssl: self.smtp_ssl = smtp_ssl
         if smtp_user: self.smtp_user = smtp_user
+        if smtp_password: self.smtp_password = smtp_password
         if smtp_from: self.smtp_from = smtp_from
         if smtp_cc: self.smtp_cc = smtp_cc
 
@@ -173,7 +190,7 @@ your filenotify bot
         logger.debug("read {} addresses from {}".format(len(mailaddresses), file))
         return mailaddresses
 
-    def read_sys_config(self):
+    def read_sys_config(self, sys_config_file):
         """
         read filenotify system configuration
 
@@ -182,9 +199,13 @@ your filenotify bot
         [mail]
         host = your.mail.server
         user = smtp_user
+        port = 25
+        starttls = False
+        ssl = False
         password = yourfancypassword
         from = sending@address
         cc = optional@receipients, if@you.like
+        subject = files have changed
         template = hi receipient,
             this is the message body.
             valid placeholders are:
@@ -193,12 +214,17 @@ your filenotify bot
         """
 
         config = configparser.ConfigParser()
-        config.read([self.sys_config_file])
-        logger.debug("configuration read from {}".format(self.sys_config_file))
+        config.read([sys_config_file])
+        logger.debug("configuration read from {}".format(sys_config_file))
         self.smtp_host = config.get("mail","host")
+        self.smtp_port = config.get("mail","port")
+        self.smtp_starttls = config.getboolean("mail","starttls")
+        self.smtp_ssl = config.getboolean("mail","ssl")
         self.smtp_user = config.get("mail","user")
+        self.smtp_password = config.get("mail","password")
         self.smtp_from = config.get("mail","from")
         self.smtp_cc = config.get("mail","cc")
+        self.smtp_subject = config.get("mail","subject")
         self.smtp_template = config.get("mail","template")
 
     def notify(self, root, diff_manifest):
@@ -214,12 +240,48 @@ your filenotify bot
         mailaddresses = self.read_config(root)
         logger.info("send notifications about {} to {}".format(base_dir, mailaddresses))
         # fill in template
-        changed_files = ",".join(diff_manifest.keys())
+        changed_files = ", ".join(diff_manifest.keys())
         logger.debug("changed_files: {}".format(changed_files))
 
+        # create mail
         mailtext = self.smtp_template.format(base_dir=self.base_dir, changed_files=changed_files)
+        message = MIMEText(mailtext)
+        message['Subject'] = self.smtp_subject
+        message['To'] = ", ".join(mailaddresses)
+        message["From"] = self.smtp_from
+        message["Cc"] = self.smtp_cc
         logger.debug("text to send: {}".format(mailtext))
         # send mail
+        try:
+            logger.debug("opening connection to {}:{}".format(self.smtp_host, self.smtp_port))
+
+            if self.smtp_ssl:
+                logger.debug("connecting using SSL")
+                conn = SMTP_SSL(host=self.smtp_host, port=self.smtp_port)
+            else:
+                conn = SMTP(host=self.smtp_host, port=self.smtp_port)
+
+            if logger.level == logging.DEBUG:
+                conn.set_debuglevel(True)
+            if self.smtp_starttls:
+                logger.debug("sending starttls")
+                conn.starttls()
+
+            # login in if needed
+            if self.smtp_user:
+                logger.debug("logging in as {}".format(self.smtp_user))
+                conn.login(self.smtp_user, self.smtp_password)
+
+            try:
+                logger.debug("sending mail from {} to {}".format(self.smtp_from, mailaddresses))
+                conn.sendmail(self.smtp_from, mailaddresses, message.as_string())
+            finally:
+                conn.close()
+
+        except Exception as exc:
+            logger.error("Error sending mail")
+            logger.critical(exc)
+            sys.exit("Mail failed: {}".format(exc))
 
 
     def run(self):
@@ -271,7 +333,7 @@ def cmdline(args):
     parser = argparse.ArgumentParser(description = "detect and notify changes in directories")
     parser.add_argument("path", help="root directory where parsing starts")
     parser.add_argument("-v", "--verbose", help="enable verbose logging", action="store_true")
-    parser.add_argument("-C", "--config", help="configuration file", default="/etc/filenotify.conf")
+    parser.add_argument("-C", "--config", help="configuration file")
     result = parser.parse_args(args)
     if result.verbose:
         logger.setLevel(logging.DEBUG)
@@ -279,10 +341,9 @@ def cmdline(args):
 
 def main(args):
     """init a filenotify instance with command line arguments and run it"""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(format='%(message)s',level=logging.INFO)
     argp = cmdline(args)
-
-    fn = FileNotify(argp.path)
+    fn = FileNotify(argp.path, sys_config_file=argp.config)
     fn.run()
 
 if __name__ == "__main__":
