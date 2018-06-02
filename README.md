@@ -9,6 +9,22 @@ Filenotify watches a directory structure and sends mail to users about changes i
   new files and files with changed modification time are notified and the manifest is then updated
 - removed files will NOT be notified
 
+# Usage
+
+```
+usage: filenotify.py [-h] [-v] [-C CONFIG] path
+
+detect and notify changes in directories
+
+positional arguments:
+  path                  root directory where parsing starts
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --verbose         enable verbose logging
+  -C CONFIG, --config CONFIG
+                        configuration file
+                        ```
 
 # Directory config file
 
