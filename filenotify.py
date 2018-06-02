@@ -1,6 +1,8 @@
 #!python
 
 """
+https://github.com/gnuts/filenotify
+
 Filenotify watches a directory structure and notifies users about changes in each directoryself.
 
 - Each directory has its own configuration file that contains the mailaddresses that will be notifiedself.
@@ -11,7 +13,9 @@ Filenotify watches a directory structure and notifies users about changes in eac
 # 17:10 - 18:10 = 1h
 # 15:00 - 16:30 = 1.5h
 # 13:30 - 15:00 = 1.5h
-# 15:00 -
+# 15:00 - 16:30 = 1.5h
+# = 5.5h
+
 
 import os
 import sys
