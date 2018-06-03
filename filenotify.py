@@ -15,7 +15,7 @@ Filenotify watches a directory structure and notifies users about changes in eac
 # 13:30 - 15:00 = 1.5h
 # 15:00 - 16:30 = 1.5h
 # = 5.5h
-
+# 15:20 -
 
 import os
 import sys
@@ -29,6 +29,10 @@ from email.mime.text import MIMEText
 logger = logging.getLogger("filenotify")
 
 class FileNotify:
+    dryrun = False
+    manifest_file = ".MANIFEST"
+    config_file = "mailaddresses.txt"
+    sys_config_file = None
     smtp_host = "localhost"
     smtp_port = 25
     smtp_starttls = False
@@ -49,17 +53,19 @@ regards,
 your filenotify bot
 """
 
-    def __init__(self, base_dir, manifest_file=".MANIFEST", config_file="mailaddresses.txt",
-                 sys_config_file=None,
+    def __init__(self, base_dir, manifest_file=None, config_file=None, sys_config_file=None,
                  smtp_host=None, smtp_port=None, smtp_starttls=None, smtp_ssl=None, smtp_user=None,
-                 smtp_password=None, smtp_from=None, smtp_cc=None, smtp_subject=None, smtp_template=None):
+                 smtp_password=None, smtp_from=None, smtp_cc=None, smtp_subject=None, smtp_template=None,
+                 dryrun=False):
         self.base_dir = os.path.realpath(base_dir)
-        self.manifest_file = manifest_file
-        self.config_file = config_file
-        self.sys_config_file = sys_config_file
 
+
+        self.dryrun = dryrun
+        if manifest_file: self.manifest_file = manifest_file
+        if config_file: self.config_file = config_file
 
         # setup smtp parameters
+        if sys_config_file: self.sys_config_file = sys_config_file
         if sys_config_file:
             self.read_sys_config(sys_config_file)
         # smtp arguments from constructor/command line override config file!
@@ -323,8 +329,11 @@ your filenotify bot
             if diff_manifest:
                 logger.info("there are changes in {}".format(base_name))
                 logger.debug("changes: {}".format(diff_manifest))
-                self.notify(root, diff_manifest)
-                self.write_manifest(root, new_manifest)
+                if self.dryrun:
+                    logger.warn("dryrun: doing nothing")
+                else:
+                    self.notify(root, diff_manifest)
+                    self.write_manifest(root, new_manifest)
             else:
                 logger.info("nothing changed in {}".format(base_name))
 
@@ -338,6 +347,22 @@ def cmdline(args):
     parser.add_argument("path", help="root directory where parsing starts")
     parser.add_argument("-v", "--verbose", help="enable verbose logging", action="store_true")
     parser.add_argument("-C", "--config", help="configuration file")
+    parser.add_argument("--host", help="smtp host")
+    parser.add_argument("--port", help="smtp port (default:%(default)s)", default=25, type=int)
+    parser.add_argument("--user", help="smtp user")
+    parser.add_argument("--password", help="smtp password")
+    parser.add_argument("--starttls", help="send starttls in smtp connection", action="store_true")
+    parser.add_argument("--ssl", help="use ssl connection for smtp connection", action="store_true")
+    parser.add_argument("--from", help="sender address", dest="smtp_from")
+    parser.add_argument("--cc", help="carbon copies for all mails")
+    parser.add_argument("--subject", help="mail subject")
+    parser.add_argument("--manifest", help="name of manifest file (default:%(default)s)",
+                        default=FileNotify.manifest_file)
+    parser.add_argument("--mailfile", help="name of directory config file (default:%(default)s)",
+                        default=FileNotify.config_file)
+    parser.add_argument("--dryrun", help="do not send mail and do not update manifest file",
+                        action="store_true")
+    #parser.add_argument("--", help="smtp")
     result = parser.parse_args(args)
     if result.verbose:
         logger.setLevel(logging.DEBUG)
@@ -347,7 +372,12 @@ def main(args):
     """init a filenotify instance with command line arguments and run it"""
     logging.basicConfig(format='%(message)s',level=logging.INFO)
     argp = cmdline(args)
-    fn = FileNotify(argp.path, sys_config_file=argp.config)
+    fn = FileNotify(argp.path, sys_config_file=argp.config, manifest_file=argp.manifest,
+                    config_file=argp.mailfile, dryrun=argp.dryrun,
+                    smtp_host=argp.host, smtp_port=argp.port, smtp_starttls=argp.starttls,
+                    smtp_ssl=argp.ssl, smtp_user=argp.user, smtp_password=argp.password,
+                    smtp_from=argp.smtp_from, smtp_cc=argp.cc, smtp_subject=argp.subject
+                    )
     fn.run()
 
 if __name__ == "__main__":

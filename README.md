@@ -12,7 +12,11 @@ Filenotify watches a directory structure and sends mail to users about changes i
 # Usage
 
 ```
-usage: filenotify.py [-h] [-v] [-C CONFIG] path
+usage: filenotify.py [-h] [-v] [-C CONFIG] [--host HOST] [--port PORT]
+                     [--user USER] [--password PASSWORD] [--starttls] [--ssl]
+                     [--from SMTP_FROM] [--cc CC] [--subject SUBJECT]
+                     [--manifest MANIFEST] [--mailfile MAILFILE] [--dryrun]
+                     path
 
 detect and notify changes in directories
 
@@ -24,7 +28,21 @@ optional arguments:
   -v, --verbose         enable verbose logging
   -C CONFIG, --config CONFIG
                         configuration file
-                        ```
+  --host HOST           smtp host
+  --port PORT           smtp port (default:25)
+  --user USER           smtp user
+  --password PASSWORD   smtp password
+  --starttls            send starttls in smtp connection
+  --ssl                 use ssl connection for smtp connection
+  --from SMTP_FROM      sender address
+  --cc CC               carbon copies for all mails
+  --subject SUBJECT     mail subject
+  --manifest MANIFEST   name of manifest file (default:.MANIFEST)
+  --mailfile MAILFILE   name of directory config file
+                        (default:mailaddresses.txt)
+  --dryrun              do not send mail and do not update manifest file
+
+```
 
 # Directory config file
 
