@@ -15,7 +15,8 @@ Filenotify watches a directory structure and notifies users about changes in eac
 # 13:30 - 15:00 = 1.5h
 # 15:00 - 16:30 = 1.5h
 # = 5.5h
-# 15:20 -
+# 15:30 - 16:00 = 0.5h
+# = 6h
 
 import os
 import sys
