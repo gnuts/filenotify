@@ -36,7 +36,6 @@ The format is:
 # comment
 mail@address
 another@address
-...
 ```
 
 # Filenotify Configuration file
