@@ -350,7 +350,7 @@ your filenotify bot
                 if self.dryrun:
                     logger.warn("dryrun: doing nothing")
                 else:
-                    self.notify(root, diff_manifest)
+                    self.notify(root, diff_manifest, mailaddresses)
                     self.write_manifest(root, new_manifest)
             else:
                 logger.info("nothing changed in {}".format(base_name))
