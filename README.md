@@ -3,13 +3,14 @@
 
 Filenotify watches a directory structure and sends mail to users about changes in each directory.
 
-It's intendet use is for embedded NAS systems, therefore it has no requirements besides python 3 and its standard libs.
+Its intended use is for embedded NAS systems, therefore it has no requirements besides python 3 and its standard libs.
 
 - Each directory has its own configuration file that contains the mailaddresses that will be notified.
 - Each directory also contains a manifest file that contains information about known files
 - When run, the contents of the manifest file are compared to the actual files in the directory.
   new files and files with changed modification time are notified and the manifest is then updated
 - removed files will NOT be notified
+- if a mailaddresses file is found, it will be used for subdirectories, too
 
 # Usage
 
@@ -48,7 +49,7 @@ optional arguments:
 
 # Directory config file
 
-The directory config file is `mailaddresses.txt` in each directory.
+The directory config file is `mailaddresses.txt` in each directory. If none is found, the one in a lower directory of the same branch is used. If there isn't any config file found, the directory is ignored.
 
 The format is:
 
