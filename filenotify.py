@@ -29,6 +29,7 @@ from email.mime.text import MIMEText
 
 logger = logging.getLogger("filenotify")
 
+
 class FileNotify:
     dryrun = False
     manifest_file = ".MANIFEST"
@@ -69,7 +70,8 @@ your filenotify bot
         if sys_config_file: self.sys_config_file = sys_config_file
         if sys_config_file:
             self.read_sys_config(sys_config_file)
-        # smtp arguments from constructor/command line override config file!
+
+        # smtp arguments from constructor/command line override config file
         if smtp_host: self.smtp_host = smtp_host
         if smtp_port: self.smtp_port = smtp_port
         if smtp_starttls: self.smtp_starttls = smtp_starttls
@@ -227,6 +229,7 @@ your filenotify bot
         config = configparser.ConfigParser()
         config.read([sys_config_file])
         logger.debug("configuration read from {}".format(sys_config_file))
+
         self.smtp_host = config.get("mail","host")
         self.smtp_port = config.get("mail","port")
         self.smtp_starttls = config.getboolean("mail","starttls")
@@ -238,7 +241,8 @@ your filenotify bot
         self.smtp_subject = config.get("mail","subject")
         self.smtp_template = config.get("mail","template")
 
-    def notify(self, root, diff_manifest):
+
+    def notify(self, root, diff_manifest, mailaddresses):
         """
         send mail about changed files
         """
@@ -248,7 +252,6 @@ your filenotify bot
             return
 
         base_dir = os.path.basename(root)
-        mailaddresses = self.read_config(root)
         logger.info("send notifications about {} to {}".format(base_dir, mailaddresses))
         # fill in template
         changed_files = ", ".join(diff_manifest.keys())
@@ -263,6 +266,8 @@ your filenotify bot
         message["Cc"] = self.smtp_cc
         logger.debug("text to send: {}".format(mailtext))
         # send mail
+        logger.debug("port: {}".format(self.smtp_port))
+
         try:
             logger.debug("opening connection to {}:{}".format(self.smtp_host, self.smtp_port))
 
@@ -294,7 +299,6 @@ your filenotify bot
             logger.critical(exc)
             sys.exit("Mail failed: {}".format(exc))
 
-
     def run(self):
         """
         run filenotify and scoop directories
@@ -303,6 +307,8 @@ your filenotify bot
         - directories and files starting with '.' are ignored
         """
         logger.info("scanning {}".format(self.base_dir))
+        found_dir = ""
+        mailaddresses = None
         for root, subdirs, files in os.walk(self.base_dir):
             base_name = os.path.basename(root)
             logger.debug("inside {}".format(root))
@@ -314,10 +320,21 @@ your filenotify bot
                     logger.info("ignoring subdirectory {}".format(sub_base_name))
                     subdirs.remove(dir)
 
-            # look for configfile, else bail out
-            if not self.config_file in files:
-                logger.warn("no '{}' in '{}', ignoring directory".format(self.config_file, base_name))
-                continue
+            # look for configfile
+            # ignore directory if there is no configfile and no known addresses for current branch
+            if found_dir and not root.startswith(found_dir):
+                found_dir = None
+
+            if self.config_file in files:
+                mailaddresses = self.read_config(root)
+                found_dir = root
+            else:
+                if found_dir and mailaddresses:
+                    logger.warn("no '{}' in '{}', using mailadresses found in {}".format(self.config_file, base_name, found_dir))
+                else:
+                    logger.warn("no '{}' in '{}', ignoring directory".format(self.config_file, base_name))
+                    continue
+
 
             # read manifest and create new manifest
             manifest = self.read_manifest(root)
@@ -349,7 +366,7 @@ def cmdline(args):
     parser.add_argument("-v", "--verbose", help="enable verbose logging", action="store_true")
     parser.add_argument("-C", "--config", help="configuration file")
     parser.add_argument("--host", help="smtp host")
-    parser.add_argument("--port", help="smtp port (default:%(default)s)", default=25, type=int)
+    parser.add_argument("--port", help="smtp port", type=int)
     parser.add_argument("--user", help="smtp user")
     parser.add_argument("--password", help="smtp password")
     parser.add_argument("--starttls", help="send starttls in smtp connection", action="store_true")
@@ -358,9 +375,9 @@ def cmdline(args):
     parser.add_argument("--cc", help="carbon copies for all mails")
     parser.add_argument("--subject", help="mail subject")
     parser.add_argument("--manifest", help="name of manifest file (default:%(default)s)",
-                        default=FileNotify.manifest_file)
+                        default=".MANIFEST")
     parser.add_argument("--mailfile", help="name of directory config file (default:%(default)s)",
-                        default=FileNotify.config_file)
+                        default="mailaddresses.txt")
     parser.add_argument("--dryrun", help="do not send mail and do not update manifest file",
                         action="store_true")
     #parser.add_argument("--", help="smtp")
