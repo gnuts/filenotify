@@ -24,6 +24,7 @@ import time
 import argparse
 import logging
 import configparser
+from fnmatch import fnmatch
 from smtplib import SMTP_SSL, SMTP
 from email.mime.text import MIMEText
 
@@ -31,6 +32,8 @@ logger = logging.getLogger("filenotify")
 
 
 class FileNotify:
+    ignore_dirs = ['.*', '@*', '#*']
+    ignore_files = ['.*', '*~', '*.bak']
     dryrun = False
     manifest_file = ".MANIFEST"
     config_file = "mailaddresses.txt"
@@ -313,12 +316,26 @@ your filenotify bot
             base_name = os.path.basename(root)
             logger.debug("inside {}".format(root))
 
-            # ignore dot dirs
-            for dir in subdirs:
+            # ignore dirs from ignore_dirs list
+            for dir in subdirs[:]:
                 sub_base_name = os.path.basename(dir)
-                if sub_base_name.startswith('.'):
-                    logger.info("ignoring subdirectory {}".format(sub_base_name))
-                    subdirs.remove(dir)
+                for pattern in self.ignore_dirs:
+                    if fnmatch(sub_base_name, pattern):
+                        logger.warn("ignoring subdirectory {} because "
+                                    "it matches pattern {}".format(sub_base_name, pattern))
+                        subdirs.remove(dir)
+                        continue
+
+            # ignore files from ignore_files list
+            for file in files[:]:
+                sub_base_name = os.path.basename(file)
+                for pattern in self.ignore_files:
+                    if fnmatch(sub_base_name, pattern):
+                        logger.warn("ignoring file {} because "
+                                    "it matches pattern {}".format(sub_base_name, pattern))
+                        files.remove(file)
+                        continue
+
 
             # look for configfile
             # ignore directory if there is no configfile and no known addresses for current branch
