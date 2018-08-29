@@ -1,0 +1,4 @@
+* config pro verzeichniss überlagerbar .filenotify.conf
+* UTF-8 Template / eigene Datei .template.txt
+* Template Variable für relativen Pfad letzer Pfadabteil und base_path - path
+* Template variable für .filenotify.conf named_base_dir und base_dir_prefix
