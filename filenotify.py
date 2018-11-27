@@ -8,6 +8,7 @@ Filenotify watches a directory structure and notifies users about changes in eac
 - Each directory has its own configuration file that contains the mailaddresses that will be notifiedself.
 - Each directory also contains a manifest file that contains information about known files
 - When run, the contents of the manifest file are compared to the actual files in the directory. Any differences are notified and the manifest is then updated
+
 """
 
 # 17:10 - 18:10 = 1h
@@ -17,6 +18,7 @@ Filenotify watches a directory structure and notifies users about changes in eac
 # = 5.5h
 # 15:30 - 16:00 = 0.5h
 # = 6h
+# 19:00 -
 
 import os
 import sys
@@ -123,9 +125,17 @@ your filenotify bot
         if not manifest_dict:
             return
 
+        data = ""
+        for file, date in manifest_dict.items():
+            data += "{};{}\n".format(file,date)
+
+        logger.debug("writing to manifest:".format(data))
+        if self.dryrun:
+            logger.warn("dryrun: doing nothing")
+            return
+
         with open(manifest_file, "w") as f:
-            for file, date in manifest_dict.items():
-                f.write("{};{}\n".format(file,date))
+            f.write(data)
         logger.debug("wrote manifest {}".format(manifest_file))
 
     def diff_manifest(self, old_manifest, new_manifest):
@@ -260,8 +270,16 @@ your filenotify bot
         changed_files = ", ".join(diff_manifest.keys())
         logger.debug("changed_files: {}".format(changed_files))
 
+        # create some more vars
+        current_dir = root.replace(self.base_dir,'')
+        current_dir = current_dir.lstrip(os.path.sep)
+        logger.debug("base_dir: {}".format(base_dir))
+        logger.debug("root: {}".format(root))
+        logger.debug("current_dir: {}".format(current_dir))
+
         # create mail
-        mailtext = self.smtp_template.format(base_dir=self.base_dir, changed_files=changed_files)
+        mailtext = self.smtp_template.format(base_dir=self.base_dir, changed_files=changed_files,
+                                             current_dir=current_dir)
         message = MIMEText(mailtext)
         message['Subject'] = self.smtp_subject
         message['To'] = ", ".join(mailaddresses)
@@ -270,6 +288,11 @@ your filenotify bot
         logger.debug("text to send: {}".format(mailtext))
         # send mail
         logger.debug("port: {}".format(self.smtp_port))
+
+        if self.dryrun:
+            logger.warn("dryrun: doing nothing")
+            return
+
 
         try:
             logger.debug("opening connection to {}:{}".format(self.smtp_host, self.smtp_port))
@@ -364,11 +387,8 @@ your filenotify bot
             if diff_manifest:
                 logger.info("there are changes in {}".format(base_name))
                 logger.debug("changes: {}".format(diff_manifest))
-                if self.dryrun:
-                    logger.warn("dryrun: doing nothing")
-                else:
-                    self.notify(root, diff_manifest, mailaddresses)
-                    self.write_manifest(root, new_manifest)
+                self.notify(root, diff_manifest, mailaddresses)
+                self.write_manifest(root, new_manifest)
             else:
                 logger.info("nothing changed in {}".format(base_name))
 
