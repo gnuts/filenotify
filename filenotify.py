@@ -48,6 +48,7 @@ class FileNotify:
     smtp_from = "filenotify"
     smtp_cc = None
     smtp_subject = "there are new or changed files"
+    smtp_template_file = '.mailtemplate.txt'
     smtp_template = """Hello,
 
 there are new or changed files in directory {base_dir}:
@@ -277,8 +278,15 @@ your filenotify bot
         logger.debug("root: {}".format(root))
         logger.debug("current_dir: {}".format(current_dir))
 
+        mailtext = self.smtp_template
+        template_file = os.path.join(root, self.smtp_template_file)
+        if os.path.exists(template_file):
+            logger.debug("found mail template file: {}".format(template_file))
+            with open(template_file) as f:
+                mailtext = f.read()
+
         # create mail
-        mailtext = self.smtp_template.format(base_dir=self.base_dir, changed_files=changed_files,
+        mailtext = mailtext.format(base_dir=self.base_dir, changed_files=changed_files,
                                              current_dir=current_dir)
         message = MIMEText(mailtext)
         message['Subject'] = self.smtp_subject

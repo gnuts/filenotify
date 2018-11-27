@@ -1,0 +1,7 @@
+hi receipient,
+this is the message body read from a template!
+ÄÖÜ
+{base_dir} is the directory containing the changes
+{current_dir} is the directory containing the changes relative to the starting directory
+{changed_files} is a comma separated list of files that have changed
+

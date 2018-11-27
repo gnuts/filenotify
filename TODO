@@ -1,4 +1,4 @@
-- [ ] UTF-8 Template / eigene Datei .template.txt
+- [x] UTF-8 Template / eigene Datei .template.txt
 - [x] Template Variable für relativen Pfad letzer Pfadteil und base_path - path
 - [ ] Template variable für .filenotify.conf named_base_dir und base_dir_prefix
 - [ ] config pro verzeichniss überlagerbar .filenotify.conf
