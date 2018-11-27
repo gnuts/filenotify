@@ -64,6 +64,7 @@ your filenotify bot
     def __init__(self, base_dir, manifest_file=None, config_file=None, sys_config_file=None,
                  smtp_host=None, smtp_port=None, smtp_starttls=None, smtp_ssl=None, smtp_user=None,
                  smtp_password=None, smtp_from=None, smtp_cc=None, smtp_subject=None, smtp_template=None,
+                 smtp_template_file=None,
                  dryrun=False):
         self.base_dir = os.path.realpath(base_dir)
 
@@ -86,6 +87,7 @@ your filenotify bot
         if smtp_password: self.smtp_password = smtp_password
         if smtp_from: self.smtp_from = smtp_from
         if smtp_cc: self.smtp_cc = smtp_cc
+        if smtp_template_file: self.smtp_template_file = smtp_template_file
 
         logger.debug("initialized. base_dir='{}'".format(self.base_dir))
 
@@ -233,6 +235,7 @@ your filenotify bot
         from = sending@address
         cc = optional@receipients, if@you.like
         subject = files have changed
+        template_file = .mailtemplate.txt
         template = hi receipient,
             this is the message body.
             valid placeholders are:
@@ -254,6 +257,7 @@ your filenotify bot
         self.smtp_cc = config.get("mail","cc")
         self.smtp_subject = config.get("mail","subject")
         self.smtp_template = config.get("mail","template")
+        self.smtp_template_file = config.get("mail","template_file")
 
 
     def notify(self, root, diff_manifest, mailaddresses):
@@ -423,6 +427,8 @@ def cmdline(args):
                         default=".MANIFEST")
     parser.add_argument("--mailfile", help="name of directory config file (default:%(default)s)",
                         default="mailaddresses.txt")
+    parser.add_argument("--mailtemplate", help="name of directory mail template file (default:%(default)s)",
+                        default=".mailtemplate.txt")
     parser.add_argument("--dryrun", help="do not send mail and do not update manifest file",
                         action="store_true")
     #parser.add_argument("--", help="smtp")
@@ -439,7 +445,8 @@ def main(args):
                     config_file=argp.mailfile, dryrun=argp.dryrun,
                     smtp_host=argp.host, smtp_port=argp.port, smtp_starttls=argp.starttls,
                     smtp_ssl=argp.ssl, smtp_user=argp.user, smtp_password=argp.password,
-                    smtp_from=argp.smtp_from, smtp_cc=argp.cc, smtp_subject=argp.subject
+                    smtp_from=argp.smtp_from, smtp_cc=argp.cc, smtp_subject=argp.subject,
+                    smtp_template_file=argp.mailtemplate
                     )
     fn.run()
 
