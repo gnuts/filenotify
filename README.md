@@ -11,6 +11,7 @@ Its intended use is for embedded NAS systems, therefore it has no requirements b
   new files and files with changed modification time are notified and the manifest is then updated
 - removed files will NOT be notified
 - if a mailaddresses file is found, it will be used for subdirectories, too
+- if a mailtemplate file is found, this template will be used for subdirectories
 
 # Usage
 
@@ -18,7 +19,8 @@ Its intended use is for embedded NAS systems, therefore it has no requirements b
 usage: filenotify.py [-h] [-v] [-C CONFIG] [--host HOST] [--port PORT]
                      [--user USER] [--password PASSWORD] [--starttls] [--ssl]
                      [--from SMTP_FROM] [--cc CC] [--subject SUBJECT]
-                     [--manifest MANIFEST] [--mailfile MAILFILE] [--dryrun]
+                     [--manifest MANIFEST] [--mailfile MAILFILE]
+                     [--mailtemplate MAILTEMPLATE] [--dryrun]
                      path
 
 detect and notify changes in directories
@@ -32,7 +34,7 @@ optional arguments:
   -C CONFIG, --config CONFIG
                         configuration file
   --host HOST           smtp host
-  --port PORT           smtp port (default:25)
+  --port PORT           smtp port
   --user USER           smtp user
   --password PASSWORD   smtp password
   --starttls            send starttls in smtp connection
@@ -43,6 +45,9 @@ optional arguments:
   --manifest MANIFEST   name of manifest file (default:.MANIFEST)
   --mailfile MAILFILE   name of directory config file
                         (default:mailaddresses.txt)
+  --mailtemplate MAILTEMPLATE
+                        name of directory mail template file
+                        (default:.mailtemplate.txt)
   --dryrun              do not send mail and do not update manifest file
 
 ```

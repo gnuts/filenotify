@@ -18,7 +18,8 @@ Filenotify watches a directory structure and notifies users about changes in eac
 # = 5.5h
 # 15:30 - 16:00 = 0.5h
 # = 6h
-# 19:00 -
+# 19:00 - 20:30 = 1.5h
+# = 7.5h
 
 import os
 import sys
@@ -88,6 +89,7 @@ your filenotify bot
         if smtp_from: self.smtp_from = smtp_from
         if smtp_cc: self.smtp_cc = smtp_cc
         if smtp_template_file: self.smtp_template_file = smtp_template_file
+
 
         logger.debug("initialized. base_dir='{}'".format(self.base_dir))
 
@@ -260,7 +262,7 @@ your filenotify bot
         self.smtp_template_file = config.get("mail","template_file")
 
 
-    def notify(self, root, diff_manifest, mailaddresses):
+    def notify(self, root, diff_manifest, mailaddresses, mailtemplate):
         """
         send mail about changed files
         """
@@ -283,11 +285,8 @@ your filenotify bot
         logger.debug("current_dir: {}".format(current_dir))
 
         mailtext = self.smtp_template
-        template_file = os.path.join(root, self.smtp_template_file)
-        if os.path.exists(template_file):
-            logger.debug("found mail template file: {}".format(template_file))
-            with open(template_file) as f:
-                mailtext = f.read()
+        if mailtemplate:
+            mailtext = mailtemplate
 
         # create mail
         mailtext = mailtext.format(base_dir=self.base_dir, changed_files=changed_files,
@@ -347,6 +346,7 @@ your filenotify bot
         logger.info("scanning {}".format(self.base_dir))
         found_dir = ""
         mailaddresses = None
+        mailtemplate = None
         for root, subdirs, files in os.walk(self.base_dir):
             base_name = os.path.basename(root)
             logger.debug("inside {}".format(root))
@@ -374,19 +374,32 @@ your filenotify bot
 
             # look for configfile
             # ignore directory if there is no configfile and no known addresses for current branch
+            # also reuse mailtemplate file for current branch
             if found_dir and not root.startswith(found_dir):
                 found_dir = None
+                mailaddresses = None
+                mailtemplate = None
 
             if self.config_file in files:
                 mailaddresses = self.read_config(root)
                 found_dir = root
             else:
-                if found_dir and mailaddresses:
-                    logger.warn("no '{}' in '{}', using mailadresses found in {}".format(self.config_file, base_name, found_dir))
-                else:
+                if not found_dir:
                     logger.warn("no '{}' in '{}', ignoring directory".format(self.config_file, base_name))
                     continue
 
+            template_file = os.path.join(root, self.smtp_template_file)
+            if os.path.exists(template_file):
+                logger.debug("found mail template file: {}".format(template_file))
+                with open(template_file) as f:
+                    mailtemplate = f.read()
+
+            if mailtemplate:
+                mail_found = True
+            else:
+                mail_found = False
+
+            logger.debug("mailtemplate: {} mailadresses: {}".format(mail_found, mailaddresses))
 
             # read manifest and create new manifest
             manifest = self.read_manifest(root)
@@ -399,7 +412,7 @@ your filenotify bot
             if diff_manifest:
                 logger.info("there are changes in {}".format(base_name))
                 logger.debug("changes: {}".format(diff_manifest))
-                self.notify(root, diff_manifest, mailaddresses)
+                self.notify(root, diff_manifest, mailaddresses, mailtemplate)
                 self.write_manifest(root, new_manifest)
             else:
                 logger.info("nothing changed in {}".format(base_name))
